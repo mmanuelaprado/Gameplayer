@@ -1,6 +1,7 @@
 import React, { Suspense, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { PerspectiveCamera, BakeShadows, Preload } from '@react-three/drei';
+import { PerspectiveCamera, BakeShadows, Preload, useProgress } from '@react-three/drei';
+import * as THREE from 'three';
 import { WorldManager } from './components/WorldManager';
 import { CityScene } from './components/CityScene';
 import { UIOverlay } from './components/UIOverlay';
@@ -8,24 +9,30 @@ import { Player } from './components/Player';
 import { NPC } from './components/NPC';
 import { MissionManager } from './components/MissionManager';
 import { AudioManager } from './components/AudioManager';
-import { OrientationGuard } from './components/OrientationGuard'; // Importando o Guard
+import { OrientationGuard } from './components/OrientationGuard';
 
-// Loading Screen
-const Loader = () => {
+// Loader Component usando hooks do Drei
+const LoadingScreen = () => {
+  const { progress, active } = useProgress();
+  if (!active) return null;
+
   return (
-    <div className="absolute inset-0 flex items-center justify-center bg-sky-100 z-50">
+    <div className="absolute inset-0 flex items-center justify-center bg-sky-100 z-[9999] transition-opacity duration-500">
       <div className="text-center">
-        <h2 className="text-2xl font-bold text-sky-600 mb-2">Loading Neon City...</h2>
-        <div className="w-48 h-2 bg-sky-200 rounded-full overflow-hidden">
-           <div className="h-full bg-sky-500 animate-[pulse_1s_ease-in-out_infinite]" style={{width: '60%'}}></div>
+        <h2 className="text-2xl font-bold text-sky-600 mb-2 font-sans">Neon City</h2>
+        <div className="w-64 h-4 bg-sky-200 rounded-full overflow-hidden border border-sky-300">
+           <div 
+             className="h-full bg-sky-500 transition-all duration-300 ease-out" 
+             style={{ width: `${progress}%` }}
+           ></div>
         </div>
+        <p className="mt-2 text-sky-500 font-bold">{Math.round(progress)}%</p>
       </div>
     </div>
   );
 };
 
 const App: React.FC = () => {
-  // Game State
   const [playerColor, setPlayerColor] = useState('#06b6d4');
   const [playerChat, setPlayerChat] = useState<string | null>(null);
 
@@ -37,36 +44,38 @@ const App: React.FC = () => {
     <OrientationGuard>
         <div className="relative w-full h-full bg-sky-200">
           
-          {/* Gerenciador de Áudio (Global) */}
+          <LoadingScreen />
           <AudioManager />
 
-          {/* 2D UI Layer */}
           <UIOverlay 
             onChatSend={handleChat} 
             onColorChange={setPlayerColor}
             currentColor={playerColor}
           />
 
-          {/* 3D Scene Layer */}
-          <Canvas shadows dpr={[1, 2]}>
-            
+          <Canvas 
+            shadows 
+            dpr={[1, 2]}
+            gl={{
+              // Configuração padrão moderna para cores vibrantes
+              outputColorSpace: THREE.SRGBColorSpace,
+              toneMapping: THREE.ACESFilmicToneMapping,
+            }}
+          >
             <PerspectiveCamera makeDefault position={[0, 15, 25]} fov={50} />
             
             <Suspense fallback={null}>
                 <WorldManager />
                 <CityScene />
                 
-                {/* Gerenciador da Missão Tutorial */}
                 <MissionManager />
 
-                {/* The Player */}
                 <Player 
                   color={playerColor} 
                   chatMessage={playerChat} 
                   onChatTimeout={() => setPlayerChat(null)} 
                 />
 
-                {/* NPC Guia (Dourado) - Agora Estacionário e com Ícone! */}
                 <NPC 
                   position={[5, 0, 5]} 
                   color="#ffd700" 
@@ -74,7 +83,6 @@ const App: React.FC = () => {
                   questIcon="!"
                 />
 
-                {/* Outros NPCs ambientais (continuam andando) */}
                 <NPC position={[-5, 0, 5]} color="#ef4444" />
                 <NPC position={[-8, 0, -10]} color="#a855f7" />
                 
@@ -82,9 +90,6 @@ const App: React.FC = () => {
                 <Preload all />
             </Suspense>
           </Canvas>
-
-          <Suspense fallback={<Loader />}>
-          </Suspense>
         </div>
     </OrientationGuard>
   );
